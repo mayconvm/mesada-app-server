@@ -2,3 +2,6 @@
 .env*.local
 infra/.env
 infra/backup/*.sql
+
+# codegraph index (local)
+.codegraph/
