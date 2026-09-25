@@ -42,7 +42,7 @@ services:
       GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: 'false'
 
   rest:
-    image: postgrest/postgrest:v12
+    image: postgrest/postgrest
     restart: unless-stopped
     env_file: .env
     depends_on:
