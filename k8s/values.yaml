@@ -1,0 +1,42 @@
+ingress:
+  enabled: true
+  className: traefik
+  host: mesada.example.com
+  entrypoints: [websecure]
+  tls: true
+  certResolver: letsencrypt
+  studioEnabled: false
+
+postgres:
+  image: supabase/postgres:15
+  storage: 20Gi
+  password: ''
+  db: postgres
+  user: postgres
+
+auth:
+  image: supabase/auth:v2
+  jwtSecret: ''
+  anonKey: ''
+  serviceRoleKey: ''
+  jwtExp: 3600
+  mailerAutoconfirm: 'true'
+  smtpHost: mesada-mailpit
+  smtpPort: 1025
+  adminEmail: admin@mesada.local
+  senderName: Mesada
+
+rest:
+  image: postgrest/postgrest
+  schemas: public
+  anonRole: anon
+
+functions:
+  image: supabase/edge-runtime:v1
+  functionsPath: /home/deno/functions
+
+mailpit:
+  image: axllent/mailpit
+
+kong:
+  image: kong:2.8

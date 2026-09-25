@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mesada.fullname" . }}-mailpit
+  labels:
+    {{- include "mesada.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: mailpit }
+  template:
+    metadata:
+      labels: { app: mailpit, {{ include "mesada.labels" . | nindent 8 }} }
+    spec:
+      containers:
+        - name: mailpit
+          image: {{ .Values.mailpit.image }}
+          ports: [{ containerPort: 8025 }, { containerPort: 1025 }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "mesada.fullname" . }}-mailpit
+  labels:
+    {{- include "mesada.labels" . | nindent 4 }}
+spec:
+  selector: { app: mailpit }
+  ports:
+    - { name: ui, port: 8025, targetPort: 8025 }
+    - { name: smtp, port: 1025, targetPort: 1025 }

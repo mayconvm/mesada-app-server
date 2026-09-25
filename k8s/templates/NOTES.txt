@@ -1,0 +1,12 @@
+Mesada Supabase backend is starting.
+
+Public URL (via Traefik + Kong):
+  https://{{ .Values.ingress.host }}
+
+Point the app at it:
+  EXPO_PUBLIC_SUPABASE_URL=https://{{ .Values.ingress.host }}
+  EXPO_PUBLIC_SUPABASE_ANON_KEY=<same anon-key passed via --set auth.anonKey>
+
+Secrets live in Secret/{{ include "mesada.fullname" . }}-secrets
+(postgres-password, jwt-secret, anon-key, service-role-key).
+Generate values with: node infra/gen-keys.mjs

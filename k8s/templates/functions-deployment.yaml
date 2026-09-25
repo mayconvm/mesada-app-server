@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mesada.fullname" . }}-functions
+  labels:
+    {{- include "mesada.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: functions }
+  template:
+    metadata:
+      labels: { app: functions, {{ include "mesada.labels" . | nindent 8 }} }
+    spec:
+      containers:
+        - name: functions
+          image: {{ .Values.functions.image }}
+          env:
+            - name: SUPABASE_URL
+              value: http://{{ include "mesada.fullname" . }}-kong:8000
+            - name: SUPABASE_ANON_KEY
+              valueFrom: { secretKeyRef: { name: {{ include "mesada.fullname" . }}-secrets, key: anon-key } }
+            - name: SUPABASE_SERVICE_ROLE_KEY
+              valueFrom: { secretKeyRef: { name: {{ include "mesada.fullname" . }}-secrets, key: service-role-key } }
+          ports: [{ containerPort: 9000 }]
+          volumeMounts: [{ name: functions, mountPath: {{ .Values.functions.functionsPath }} }]
+      volumes:
+        - name: functions
+          configMap:
+            name: {{ include "mesada.fullname" . }}-functions
+            optional: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "mesada.fullname" . }}-functions
+  labels:
+    {{- include "mesada.labels" . | nindent 4 }}
+spec:
+  selector: { app: functions }
+  ports: [{ port: 9000, targetPort: 9000 }]

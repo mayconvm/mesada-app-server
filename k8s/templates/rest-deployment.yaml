@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mesada.fullname" . }}-rest
+  labels:
+    {{- include "mesada.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: rest }
+  template:
+    metadata:
+      labels: { app: rest, {{ include "mesada.labels" . | nindent 8 }} }
+    spec:
+      containers:
+        - name: rest
+          image: {{ .Values.rest.image }}
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ include "mesada.fullname" . }}-secrets, key: postgres-password } }
+            - name: PGRST_DB_URI
+              value: postgres://{{ .Values.postgres.user }}:$(POSTGRES_PASSWORD)@{{ include "mesada.fullname" . }}-db:5432/{{ .Values.postgres.db }}
+            - name: PGRST_DB_SCHEMAS
+              value: {{ .Values.rest.schemas | quote }}
+            - name: PGRST_DB_ANON_ROLE
+              value: {{ .Values.rest.anonRole | quote }}
+            - name: PGRST_JWT_SECRET
+              valueFrom: { secretKeyRef: { name: {{ include "mesada.fullname" . }}-secrets, key: jwt-secret } }
+          ports: [{ containerPort: 3000 }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "mesada.fullname" . }}-rest
+  labels:
+    {{- include "mesada.labels" . | nindent 4 }}
+spec:
+  selector: { app: rest }
+  ports: [{ port: 3000, targetPort: 3000 }]

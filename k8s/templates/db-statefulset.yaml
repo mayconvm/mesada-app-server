@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "mesada.fullname" . }}-db
+  labels:
+    {{- include "mesada.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "mesada.fullname" . }}-db
+  replicas: 1
+  selector:
+    matchLabels: { app: db }
+  template:
+    metadata:
+      labels: { app: db, {{ include "mesada.labels" . | nindent 8 }} }
+    spec:
+      containers:
+        - name: db
+          image: {{ .Values.postgres.image }}
+          env:
+            - name: POSTGRES_USER
+              value: {{ .Values.postgres.user | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ include "mesada.fullname" . }}-secrets, key: postgres-password } }
+            - name: POSTGRES_DB
+              value: {{ .Values.postgres.db | quote }}
+          ports: [{ containerPort: 5432 }]
+          volumeMounts: [{ name: pgdata, mountPath: /var/lib/postgresql/data }]
+  volumeClaimTemplates:
+    - metadata: { name: pgdata }
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests: { storage: {{ .Values.postgres.storage }} }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "mesada.fullname" . }}-db
+  labels:
+    {{- include "mesada.labels" . | nindent 4 }}
+spec:
+  selector: { app: db }
+  ports: [{ port: 5432, targetPort: 5432 }]

@@ -1,0 +1,37 @@
+{{- if .Values.ingress.studioEnabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mesada.fullname" . }}-studio
+  labels:
+    {{- include "mesada.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: studio }
+  template:
+    metadata:
+      labels: { app: studio, {{ include "mesada.labels" . | nindent 8 }} }
+    spec:
+      containers:
+        - name: studio
+          image: supabase/studio:latest
+          env:
+            - name: SUPABASE_URL
+              value: http://{{ include "mesada.fullname" . }}-kong:8000
+            - name: SUPABASE_ANON_KEY
+              valueFrom: { secretKeyRef: { name: {{ include "mesada.fullname" . }}-secrets, key: anon-key } }
+            - name: SUPABASE_SERVICE_KEY
+              valueFrom: { secretKeyRef: { name: {{ include "mesada.fullname" . }}-secrets, key: service-role-key } }
+          ports: [{ containerPort: 3000 }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "mesada.fullname" . }}-studio
+  labels:
+    {{- include "mesada.labels" . | nindent 4 }}
+spec:
+  selector: { app: studio }
+  ports: [{ port: 3000, targetPort: 3000 }]
+{{- end }}

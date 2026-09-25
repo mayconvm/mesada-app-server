@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mesada.fullname" . }}-auth
+  labels:
+    {{- include "mesada.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: auth }
+  template:
+    metadata:
+      labels: { app: auth, {{ include "mesada.labels" . | nindent 8 }} }
+    spec:
+      containers:
+        - name: auth
+          image: {{ .Values.auth.image }}
+          env:
+            - name: POSTGRES_USER
+              value: {{ .Values.postgres.user | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ include "mesada.fullname" . }}-secrets, key: postgres-password } }
+            - name: GOTRUE_DB_DATABASE_URL
+              value: postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@{{ include "mesada.fullname" . }}-db:5432/{{ .Values.postgres.db }}?search_path=auth
+            - name: GOTRUE_JWT_SECRET
+              valueFrom: { secretKeyRef: { name: {{ include "mesada.fullname" . }}-secrets, key: jwt-secret } }
+            - name: GOTRUE_JWT_EXP
+              value: {{ .Values.auth.jwtExp | quote }}
+            - name: GOTRUE_SITE_URL
+              value: https://{{ .Values.ingress.host }}
+            - name: GOTRUE_URI_ALLOW_LIST
+              value: ''
+            - name: GOTRUE_SMTP_HOST
+              value: {{ .Values.auth.smtpHost | quote }}
+            - name: GOTRUE_SMTP_PORT
+              value: {{ .Values.auth.smtpPort | quote }}
+            - name: GOTRUE_SMTP_ADMIN_EMAIL
+              value: {{ .Values.auth.adminEmail | quote }}
+            - name: GOTRUE_SMTP_SENDER_NAME
+              value: {{ .Values.auth.senderName | quote }}
+            - name: GOTRUE_MAILER_AUTOCONFIRM
+              value: {{ .Values.auth.mailerAutoconfirm | quote }}
+            - name: GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED
+              value: 'false'
+          ports: [{ containerPort: 9999 }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "mesada.fullname" . }}-auth
+  labels:
+    {{- include "mesada.labels" . | nindent 4 }}
+spec:
+  selector: { app: auth }
+  ports: [{ port: 9999, targetPort: 9999 }]

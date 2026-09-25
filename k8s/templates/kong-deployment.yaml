@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mesada.fullname" . }}-kong
+  labels:
+    {{- include "mesada.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: kong }
+  template:
+    metadata:
+      labels: { app: kong, {{ include "mesada.labels" . | nindent 8 }} }
+    spec:
+      containers:
+        - name: kong
+          image: {{ .Values.kong.image }}
+          env:
+            - name: KONG_DATABASE
+              value: 'off'
+            - name: KONG_DECLARATIVE_CONFIG
+              value: /home/kong/kong.yml
+            - name: KONG_PROXY_LISTEN
+              value: 0.0.0.0:8000
+          ports: [{ containerPort: 8000 }]
+          volumeMounts: [{ name: kong-config, mountPath: /home/kong/kong.yml, subPath: kong.yml, readOnly: true }]
+      volumes:
+        - name: kong-config
+          configMap: { name: {{ include "mesada.fullname" . }}-kong-config }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "mesada.fullname" . }}-kong
+  labels:
+    {{- include "mesada.labels" . | nindent 4 }}
+spec:
+  selector: { app: kong }
+  ports: [{ port: 8000, targetPort: 8000 }]

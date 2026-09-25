@@ -1,0 +1,5 @@
+ingress:
+  enabled: true
+  className: traefik
+  host: mesada.prod.example.com
+  tls: true
