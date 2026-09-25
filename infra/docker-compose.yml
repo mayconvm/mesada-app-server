@@ -2,7 +2,7 @@ name: mesada-supabase
 
 services:
   db:
-    image: supabase/postgres:15
+    image: ghcr.io/supabase/postgres:17.9.0.029-orioledb
     restart: unless-stopped
     env_file: .env
     environment:
@@ -83,7 +83,7 @@ services:
     ports:
       - '127.0.0.1:9000:9000'
     volumes:
-      - ../../mesada/app/supabase/functions:/home/deno/functions:ro
+      - ../../app/supabase/functions:/home/deno/functions:ro
     environment:
       SUPABASE_URL: http://kong:8000
       SUPABASE_ANON_KEY: ${ANON_KEY}
