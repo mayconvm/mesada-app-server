@@ -40,9 +40,11 @@ rest:
   anonRole: anon
 
 functions:
-  enabled: false
+  enabled: true
   image: ghcr.io/supabase/edge-runtime:v1.77.0
+  loaderImage: busybox:1.36
   functionsPath: /home/deno/functions
+  verifyJwt: 'false'
 
 studio:
   image: supabase/studio:latest

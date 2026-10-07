@@ -15,6 +15,23 @@ spec:
         app: functions
         {{- include "mesada.labels" . | nindent 8 }}
     spec:
+      initContainers:
+        - name: code-loader
+          image: {{ .Values.functions.loaderImage }}
+          command: [sh, -c]
+          args:
+            - |
+              set -eu
+              for f in /src/*; do
+                [ -e "$f" ] || continue
+                rel=$(basename "$f" | sed 's/___/\//g')
+                mkdir -p "/code/$(dirname "$rel")"
+                cp "$f" "/code/$rel"
+              done
+              find /code -type f | sort
+          volumeMounts:
+            - { name: code-src, mountPath: /src, readOnly: true }
+            - { name: code, mountPath: /code }
       containers:
         - name: functions
           image: {{ .Values.functions.image }}
@@ -26,13 +43,18 @@ spec:
               valueFrom: { secretKeyRef: { name: {{ include "mesada.fullname" . }}-secrets, key: anon-key } }
             - name: SUPABASE_SERVICE_ROLE_KEY
               valueFrom: { secretKeyRef: { name: {{ include "mesada.fullname" . }}-secrets, key: service-role-key } }
+            - name: JWT_SECRET
+              valueFrom: { secretKeyRef: { name: {{ include "mesada.fullname" . }}-secrets, key: jwt-secret } }
+            - name: VERIFY_JWT
+              value: {{ .Values.functions.verifyJwt | quote }}
           ports: [{ containerPort: 9000 }]
-          volumeMounts: [{ name: functions, mountPath: {{ .Values.functions.functionsPath }} }]
+          volumeMounts: [{ name: code, mountPath: {{ .Values.functions.functionsPath }} }]
       volumes:
-        - name: functions
+        - name: code
+          emptyDir: {}
+        - name: code-src
           configMap:
             name: {{ include "mesada.fullname" . }}-functions
-            optional: true
 {{- end }}
 ---
 apiVersion: v1

@@ -21,7 +21,7 @@ HELM_SET := \
 	--set auth.anonKey="$(ANON_KEY)" \
 	--set auth.serviceRoleKey="$(SERVICE_ROLE_KEY)"
 
-.PHONY: help keys lint template template-prod install upgrade upgrade-prod uninstall status local-up local-down local-logs ns
+.PHONY: help keys lint template template-prod install upgrade upgrade-prod uninstall status restart functions-code local-up local-down local-logs ns
 
 help: ## Lista os targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
@@ -43,14 +43,20 @@ template: ## Renderiza manifests com values.yaml
 template-prod: ## Renderiza manifests com values-prod.yaml
 	helm template $(RELEASE) ./$(CHART) -f $(VALUES_PROD) $(HELM_SET)
 
-install: ns ## Instala o release (falha se já existir; use upgrade)
+install: ns functions-code ## Instala o release (falha se já existir; use upgrade)
 	helm install $(RELEASE) ./$(CHART) -n $(NAMESPACE) -f $(VALUES) $(HELM_SET)
 
-upgrade: ns ## Instala ou atualiza com values.yaml
+upgrade: ns functions-code ## Instala ou atualiza com values.yaml
 	helm upgrade --install $(RELEASE) ./$(CHART) -n $(NAMESPACE) -f $(VALUES) $(HELM_SET)
 
-upgrade-prod: ns ## Instala ou atualiza com values-prod.yaml
+upgrade-prod: ns functions-code ## Instala ou atualiza com values-prod.yaml
 	helm upgrade --install $(RELEASE) ./$(CHART) -n $(NAMESPACE) -f $(VALUES_PROD) $(HELM_SET)
+
+functions-code: ## Regenera o ConfigMap do codigo em supabase/functions/
+	python3 scripts/gen-functions-code.py
+
+restart: ## Reinicia os Deployments (puxa codigo novo das functions)
+	kubectl rollout restart deploy -n $(NAMESPACE) -l app.kubernetes.io/part-of=mesada-supabase
 
 uninstall: ## Remove o release (mantém PVCs por padrão)
 	helm uninstall $(RELEASE) -n $(NAMESPACE)

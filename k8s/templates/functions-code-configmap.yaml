@@ -1,0 +1,340 @@
+# GERADO por make functions-code. NAO editar a mao.
+# code-hash: 8f83c0cda94a
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "mesada.fullname" . }}-functions
+  labels:
+    {{- include "mesada.labels" . | nindent 4 }}
+  annotations:
+    mesada/code-hash: 8f83c0cda94a
+data:
+  create-child___index.ts: |
+    import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3"
+
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    }
+
+    serve(async (req) => {
+      if (req.method === 'OPTIONS') {
+        return new Response('ok', { headers: corsHeaders })
+      }
+
+      try {
+        // Nova alteração: agora recebemos o "role" vindo do Frontend (child ou parent)
+        const { name, email, password, role = 'child' } = await req.json()
+
+        // 1. Pegamos o JWT do cabeçalho
+        const authHeader = req.headers.get('Authorization')
+        if (!authHeader) {
+          throw new Error('Cabeçalho Authorization faltando.')
+        }
+        const jwt = authHeader.replace('Bearer ', '')
+
+        // 2. Cliente do Supabase
+        const supabaseClient = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+        )
+
+        // Validamos QUEM FEZ a requisição através do JWT
+        const { data: { user: parentUser }, error: getParentError } = await supabaseClient.auth.getUser(jwt)
+
+        if (getParentError || !parentUser) {
+          throw new Error('Não autorizado. Token de pai/mãe ausente ou inválido. Detalhe: ' + getParentError?.message);
+        }
+
+        // 3. Cliente de ADMIN
+        const supabaseAdmin = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+        )
+
+        // Criamos a conta Admin (Bypass no fluxo tradicional)
+        const { data: newAuthData, error: createError } = await supabaseAdmin.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true, // Auto confima pra evitar fricção
+          user_metadata: {
+            display_name: name,
+            role: role
+          }
+        })
+
+        if (createError) throw new Error('Erro ao criar usuário no Auth: ' + createError.message);
+
+        if (newAuthData?.user) {
+            // Se for child, atrelamos ao ID de quem requisitou (o Pai original). Se for parent auxiliar, deixamos null (ou futuro family_id)
+            const newParentId = role === 'child' ? parentUser.id : null;
+
+            // Upsert (não update): o perfil pode ainda não existir caso o trigger
+            // handle_new_user não tenha rodado; assim o vínculo nunca se perde em silêncio.
+            const { error: profileUpdateError } = await supabaseAdmin
+              .from('profiles')
+              .upsert({
+                 id: newAuthData.user.id,
+                 display_name: name,
+                 role: role,
+                 parent_id: newParentId,
+              }, { onConflict: 'id' });
+
+            if (profileUpdateError) {
+               throw new Error('Conta criada, mas falha ao atualizar perfil: ' + profileUpdateError.message);
+            }
+        }
+
+        return new Response(
+          JSON.stringify({ message: "Dependente criado e atrelado com sucesso ao seu perfil." }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        )
+
+      } catch (error) {
+        return new Response(JSON.stringify({ error: error.message }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        })
+      }
+    })
+  deno.jsonc: |
+    {
+      "imports": {
+        "@supabase/functions-js": "jsr:@supabase/functions-js@^2",
+        "@supabase/server": "npm:@supabase/server@^1"
+      }
+    }
+  main___index.ts: |
+    import * as jose from 'jsr:@panva/jose@6'
+
+    console.log('main function started')
+
+    const JWT_SECRET = Deno.env.get('JWT_SECRET')
+    const SUPABASE_JWKS = parseJwks(Deno.env.get('SUPABASE_JWKS'))
+    const LOCAL_JWKS = SUPABASE_JWKS ? jose.createLocalJWKSet(SUPABASE_JWKS) : null
+    const VERIFY_JWT = Deno.env.get('VERIFY_JWT') === 'true'
+
+    type AuthFailure = {
+      code: RequestErrors
+      message?: string
+    }
+
+    export enum RequestErrors {
+      InvalidLegacyJWT = 'UNAUTHORIZED_LEGACY_JWT',
+      InvalidAsymmetricJWT = 'UNAUTHORIZED_ASYMMETRIC_JWT',
+      InvalidTokenFormat = 'UNAUTHORIZED_INVALID_JWT_FORMAT',
+      UnsupportedTokenAlgorithm = 'UNAUTHORIZED_UNSUPPORTED_TOKEN_ALGORITHM',
+      MissingAuthHeader = 'UNAUTHORIZED_NO_AUTH_HEADER',
+    }
+
+    // NOTE:(kallebysantos) We don't check for valid keys but just the bare array parsing,
+    // let this for 'jose' lib verification
+    export function parseJwks(raw: string | undefined): jose.JSONWebKeySet | null {
+      if (!raw) return null
+      try {
+        const parsed = JSON.parse(raw)
+        if (parsed?.keys && Array.isArray(parsed.keys)) {
+          return parsed as jose.JSONWebKeySet
+        }
+        return null
+      } catch {
+        return null
+      }
+    }
+
+    /**
+     * Extract JWT token from Authorization header
+     *
+     * Parses the Authorization header to extract the Bearer token.
+     * Expects format: "Bearer <token>"
+     *
+     * @param req - The HTTP request object
+     * @returns The JWT token string or an authentication failure
+     */
+    function getAuthToken(req: Request): string | AuthFailure {
+      const authHeader = req.headers.get('authorization')
+      if (!authHeader) {
+        return {
+          code: RequestErrors.MissingAuthHeader,
+          message: 'Missing authorization header',
+        }
+      }
+      const tokenParts = authHeader.trim().split(/\s+/)
+      const [bearer, token] = tokenParts
+      if (bearer.toLowerCase() !== 'bearer' || tokenParts.length !== 2 || !token) {
+        return {
+          code: RequestErrors.InvalidTokenFormat,
+          message: 'Invalid JWT format',
+        }
+      }
+      return token
+    }
+
+    function getAuthErrorResponse({ code, message = 'Invalid JWT' }: AuthFailure) {
+      return Response.json(
+        {
+          code,
+          message,
+          // DEPRECATED: Retained for backward compatibility.
+          msg: message,
+        },
+        {
+          status: 401,
+          headers: {
+            'sb-error-code': code,
+            'Access-Control-Expose-Headers': 'sb-error-code',
+          },
+        }
+      )
+    }
+
+    async function isValidLegacyJWT(jwt: string): Promise<AuthFailure | null> {
+      if (!JWT_SECRET) {
+        console.error('JWT_SECRET not available for HS256 token verification')
+        return { code: RequestErrors.InvalidLegacyJWT }
+      }
+
+      const encoder = new TextEncoder();
+      const secretKey = encoder.encode(JWT_SECRET);
+
+      try {
+        await jose.jwtVerify(jwt, secretKey);
+      } catch (e) {
+        console.error('Symmetric Legacy JWT verification error', e);
+        return { code: RequestErrors.InvalidLegacyJWT }
+      }
+      return null
+    }
+
+    async function isValidJWT(jwt: string): Promise<AuthFailure | null> {
+      if (!LOCAL_JWKS) {
+        console.error('JWKS not available for ES256/RS256 token verification')
+        return { code: RequestErrors.InvalidAsymmetricJWT }
+      }
+
+      try {
+        await jose.jwtVerify(jwt, LOCAL_JWKS);
+      } catch (e) {
+        console.error('Asymmetric JWT verification error', e);
+        return { code: RequestErrors.InvalidAsymmetricJWT }
+      }
+
+      return null
+    }
+
+    /**
+     * Verify JWT token, handling both legacy (HS256) and newer (ES256/RS256) algorithms
+     *
+     * This function automatically detects the algorithm used in the token and applies
+     * the appropriate verification method:
+     * - HS256: Uses JWT_SECRET (symmetric key)
+     * - ES256/RS256: Uses JWKS endpoint (asymmetric public keys)
+     *
+     * This fix ensures compatibility with both legacy tokens and newer asymmetric tokens,
+     * resolving the "Key for the ES256 algorithm must be of type CryptoKey" error.
+     *
+     * @param jwt - The JWT token string to verify
+     * @returns Authentication failure details, or null when verification succeeds
+     */
+    async function isValidHybridJWT(jwt: string): Promise<AuthFailure | null> {
+      let jwtAlgorithm: string | undefined
+      try {
+        jwtAlgorithm = jose.decodeProtectedHeader(jwt).alg
+      } catch (e) {
+        console.error('JWT format error', e)
+        return {
+          code: RequestErrors.InvalidTokenFormat,
+          message: 'Invalid JWT format',
+        }
+      }
+
+      if (!jwtAlgorithm) {
+        return {
+          code: RequestErrors.InvalidTokenFormat,
+          message: 'Invalid JWT format',
+        }
+      }
+
+      if (jwtAlgorithm === 'HS256') {
+        console.log(`Legacy token type detected, attempting ${jwtAlgorithm} verification.`)
+
+        return await isValidLegacyJWT(jwt)
+      }
+
+      if (jwtAlgorithm === 'ES256' || jwtAlgorithm === 'RS256') {
+        return await isValidJWT(jwt)
+      }
+
+      return {
+        code: RequestErrors.UnsupportedTokenAlgorithm,
+        message: `Unsupported JWT algorithm ${jwtAlgorithm}`,
+      }
+    }
+
+    Deno.serve(async (req: Request) => {
+      if (req.method !== 'OPTIONS' && VERIFY_JWT) {
+        try {
+          const token = getAuthToken(req)
+          if (typeof token !== 'string') {
+            return getAuthErrorResponse(token)
+          }
+          const authFailure = await isValidHybridJWT(token)
+          if (authFailure) {
+            return getAuthErrorResponse(authFailure)
+          }
+        } catch (e) {
+          console.error(e)
+          return getAuthErrorResponse({
+            code: RequestErrors.InvalidTokenFormat,
+            message: 'Invalid JWT format',
+          })
+        }
+      }
+
+      const url = new URL(req.url)
+      const { pathname } = url
+      const path_parts = pathname.split('/')
+      const service_name = path_parts[1]
+
+      if (!service_name || service_name === '') {
+        const error = { msg: 'missing function name in request' }
+        return new Response(JSON.stringify(error), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+
+      const servicePath = `/home/deno/functions/${service_name}`
+      console.error(`serving the request with ${servicePath}`)
+
+      const memoryLimitMb = 150
+      const workerTimeoutMs = 1 * 60 * 1000
+      const noModuleCache = false
+      // Using a common Import Map for all functions
+      // to use a scope 'deno.json' it must be dinamically resolved base on the 'service_name'
+      const importMapPath = `/home/deno/functions/deno.jsonc`
+      // SUPABASE_FUNCTION_SLUG is listed after the container env snapshot so
+      // nothing in it can shadow the value, and it is per-request because only this
+      // worker knows which function the request resolved to.
+      const envVarsObj = { ...Deno.env.toObject(), SUPABASE_FUNCTION_SLUG: service_name }
+      const envVars = Object.keys(envVarsObj).map((k) => [k, envVarsObj[k]])
+
+      try {
+        const worker = await EdgeRuntime.userWorkers.create({
+          servicePath,
+          memoryLimitMb,
+          workerTimeoutMs,
+          noModuleCache,
+          importMapPath,
+          envVars,
+        })
+        return await worker.fetch(req)
+      } catch (e) {
+        const error = { msg: e.toString() }
+        return new Response(JSON.stringify(error), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+    })

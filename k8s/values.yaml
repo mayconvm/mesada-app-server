@@ -43,11 +43,14 @@ rest:
   anonRole: anon
 
 functions:
-  # false = não cria o Deployment (sem código das functions ainda).
-  # O Service é mantido para o DNS interno; o Kong responde 503 em /functions/v1/*.
-  enabled: false
+  # true = cria o Deployment com o codigo de supabase/functions/
+  # (gerar com: make functions-code). Rode os pods apos mudar o codigo:
+  # make upgrade-prod restart
+  enabled: true
   image: ghcr.io/supabase/edge-runtime:v1.77.0
+  loaderImage: busybox:1.36
   functionsPath: /home/deno/functions
+  verifyJwt: 'false'
 
 studio:
   image: supabase/studio:latest
