@@ -5,11 +5,14 @@ ingress:
   className: traefik
   host: apimesada.mayconvm.com.br
   # Host-based routing + PathPrefix para o Kong (sem rewrite: Kong faz strip_path).
+  # Convencao do cluster: rota em HTTP (entrypoint web), TLS terminado fora
+  # (proxy reverso). O Traefik local nao tem certResolver; com tls/certResolver
+  # a rota e descartada ("Router uses a nonexistent certificate resolver").
   path: /
   pathType: Prefix
   entrypoints:
-    - websecure
-  tls: true
+    - web
+  tls: false
   certResolver: letsencrypt
   # Middlewares Traefik (namespace/name ou name@provider). Vazio = sem rewrite,
   # pois o Kong já faz strip_path em /auth/v1/, /rest/v1/, /functions/v1/.
