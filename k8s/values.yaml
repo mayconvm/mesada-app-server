@@ -3,7 +3,7 @@
 ingress:
   enabled: true
   className: traefik
-  host: mesada.mayconvm.com.br
+  host: apimesada.mayconvm.com.br
   # Host-based routing + PathPrefix para o Kong (sem rewrite: Kong faz strip_path).
   path: /
   pathType: Prefix

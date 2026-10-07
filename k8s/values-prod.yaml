@@ -3,7 +3,7 @@
 ingress:
   enabled: true
   className: traefik
-  host: mesada.mayconvm.com.br
+  host: apimesada.mayconvm.com.br
   path: /
   pathType: Prefix
   entrypoints:
