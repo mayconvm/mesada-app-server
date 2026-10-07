@@ -18,6 +18,9 @@ data:
     CREATE SCHEMA IF NOT EXISTS auth;
     DO $$
     BEGIN
+      IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'supabase_admin') THEN
+        CREATE ROLE supabase_admin SUPERUSER CREATEDB CREATEROLE LOGIN;
+      END IF;
       IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'anon') THEN
         CREATE ROLE anon NOLOGIN NOINHERIT;
       END IF;
