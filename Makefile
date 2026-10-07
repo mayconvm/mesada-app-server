@@ -24,7 +24,7 @@ HELM_SET := \
 .PHONY: help keys lint template template-prod install upgrade upgrade-prod uninstall status restart functions-code local-up local-down local-logs ns
 
 help: ## Lista os targets
-	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
+	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
 
 keys: ## Gera infra/.env via infra/gen-keys.mjs (não sobrescreve se existir)
 	@if [ -f "$(ENV_FILE)" ]; then echo "$(ENV_FILE) já existe, nada feito."; \
