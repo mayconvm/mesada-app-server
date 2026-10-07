@@ -83,7 +83,7 @@ services:
     ports:
       - '127.0.0.1:9000:9000'
     volumes:
-      - ../../app/supabase/functions:/home/deno/functions:ro
+      - ../supabase/functions:/home/deno/functions:ro
     environment:
       SUPABASE_URL: http://kong:8000
       SUPABASE_ANON_KEY: ${ANON_KEY}
