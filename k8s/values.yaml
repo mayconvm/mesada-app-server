@@ -1,27 +1,38 @@
+# Valores default (dev/local). Espelham infra/docker-compose.yml + infra/kong/kong.yml.
+# Produção: veja values-prod.yaml (mesmos campos, host/TLS/replicas ajustados).
 ingress:
   enabled: true
   className: traefik
-  host: mesada.example.com
-  entrypoints: [websecure]
+  host: mesada.mayconvm.com.br
+  # Host-based routing + PathPrefix para o Kong (sem rewrite: Kong faz strip_path).
+  path: /
+  pathType: Prefix
+  entrypoints:
+    - websecure
   tls: true
   certResolver: letsencrypt
+  # Middlewares Traefik (namespace/name ou name@provider). Vazio = sem rewrite,
+  # pois o Kong já faz strip_path em /auth/v1/, /rest/v1/, /functions/v1/.
+  middlewares: []
   studioEnabled: false
 
 postgres:
-  image: supabase/postgres:15
+  image: ghcr.io/supabase/postgres:17.9.0.029-orioledb
   storage: 20Gi
   password: ''
   db: postgres
   user: postgres
 
 auth:
-  image: supabase/auth:v2
+  image: supabase/auth:v2.186.0
   jwtSecret: ''
   anonKey: ''
   serviceRoleKey: ''
   jwtExp: 3600
+  siteUrl: ''
+  uriAllowList: ''
   mailerAutoconfirm: 'true'
-  smtpHost: mesada-mailpit
+  smtpHost: ''
   smtpPort: 1025
   adminEmail: admin@mesada.local
   senderName: Mesada
@@ -32,11 +43,17 @@ rest:
   anonRole: anon
 
 functions:
-  image: supabase/edge-runtime:v1
+  # false = não cria o Deployment (sem código das functions ainda).
+  # O Service é mantido para o DNS interno; o Kong responde 503 em /functions/v1/*.
+  enabled: false
+  image: ghcr.io/supabase/edge-runtime:v1.77.0
   functionsPath: /home/deno/functions
+
+studio:
+  image: supabase/studio:latest
 
 mailpit:
   image: axllent/mailpit
 
 kong:
-  image: kong:2.8
+  image: kong:3.9

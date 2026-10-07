@@ -10,7 +10,9 @@ spec:
     matchLabels: { app: kong }
   template:
     metadata:
-      labels: { app: kong, {{ include "mesada.labels" . | nindent 8 }} }
+      labels:
+        app: kong
+        {{- include "mesada.labels" . | nindent 8 }}
     spec:
       containers:
         - name: kong

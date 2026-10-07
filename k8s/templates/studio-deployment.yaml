@@ -11,11 +11,13 @@ spec:
     matchLabels: { app: studio }
   template:
     metadata:
-      labels: { app: studio, {{ include "mesada.labels" . | nindent 8 }} }
+      labels:
+        app: studio
+        {{- include "mesada.labels" . | nindent 8 }}
     spec:
       containers:
         - name: studio
-          image: supabase/studio:latest
+          image: {{ .Values.studio.image }}
           env:
             - name: SUPABASE_URL
               value: http://{{ include "mesada.fullname" . }}-kong:8000

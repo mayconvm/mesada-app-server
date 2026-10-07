@@ -60,7 +60,7 @@ services:
       PGRST_JWT_SECRET: ${JWT_SECRET}
 
   kong:
-    image: kong:2.8
+    image: kong:3.9
     restart: unless-stopped
     depends_on:
       - auth

@@ -1,10 +1,10 @@
 Mesada Supabase backend is starting.
 
-Public URL (via Traefik + Kong):
-  https://{{ .Values.ingress.host }}
+Public URL (via Traefik IngressRoute + Kong):
+  https://{{ .Values.ingress.host }}{{ .Values.ingress.path }}
 
 Point the app at it:
-  EXPO_PUBLIC_SUPABASE_URL=https://{{ .Values.ingress.host }}
+  EXPO_PUBLIC_SUPABASE_URL=https://{{ .Values.ingress.host }}{{ .Values.ingress.path }}
   EXPO_PUBLIC_SUPABASE_ANON_KEY=<same anon-key passed via --set auth.anonKey>
 
 Secrets live in Secret/{{ include "mesada.fullname" . }}-secrets

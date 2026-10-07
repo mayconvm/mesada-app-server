@@ -10,7 +10,9 @@ spec:
     matchLabels: { app: rest }
   template:
     metadata:
-      labels: { app: rest, {{ include "mesada.labels" . | nindent 8 }} }
+      labels:
+        app: rest
+        {{- include "mesada.labels" . | nindent 8 }}
     spec:
       containers:
         - name: rest

@@ -10,7 +10,9 @@ spec:
     matchLabels: { app: mailpit }
   template:
     metadata:
-      labels: { app: mailpit, {{ include "mesada.labels" . | nindent 8 }} }
+      labels:
+        app: mailpit
+        {{- include "mesada.labels" . | nindent 8 }}
     spec:
       containers:
         - name: mailpit

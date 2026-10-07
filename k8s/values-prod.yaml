@@ -1,5 +1,54 @@
+# Produção: mesmos campos de values.yaml, apenas com host/TLS/entrypoint finais.
+# Sincronizado com infra/docker-compose.yml (imagens) + infra/kong/kong.yml (rotas).
 ingress:
   enabled: true
   className: traefik
-  host: mesada.prod.example.com
+  host: mesada.mayconvm.com.br
+  path: /
+  pathType: Prefix
+  entrypoints:
+    - websecure
   tls: true
+  certResolver: letsencrypt
+  middlewares: []
+  studioEnabled: false
+
+postgres:
+  image: ghcr.io/supabase/postgres:17.9.0.029-orioledb
+  storage: 20Gi
+  password: ''
+  db: postgres
+  user: postgres
+
+auth:
+  image: supabase/auth:v2.186.0
+  jwtSecret: ''
+  anonKey: ''
+  serviceRoleKey: ''
+  jwtExp: 3600
+  siteUrl: ''
+  uriAllowList: ''
+  mailerAutoconfirm: 'true'
+  smtpHost: ''
+  smtpPort: 1025
+  adminEmail: admin@mesada.local
+  senderName: Mesada
+
+rest:
+  image: postgrest/postgrest
+  schemas: public
+  anonRole: anon
+
+functions:
+  enabled: false
+  image: ghcr.io/supabase/edge-runtime:v1.77.0
+  functionsPath: /home/deno/functions
+
+studio:
+  image: supabase/studio:latest
+
+mailpit:
+  image: axllent/mailpit
+
+kong:
+  image: kong:3.9

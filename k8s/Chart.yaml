@@ -1,0 +1,16 @@
+apiVersion: v2
+name: mesada-supabase
+description: Supabase self-hosted for Mesada (deploy da pasta infra/)
+type: application
+version: 0.1.0
+appVersion: "2.186.0"
+kubeVersion: ">= 1.26.0"
+maintainers:
+  - name: mesada
+keywords:
+  - supabase
+  - postgres
+  - kong
+  - traefik
+annotations:
+  mesada/infra-source: infra/docker-compose.yml + infra/kong/kong.yml

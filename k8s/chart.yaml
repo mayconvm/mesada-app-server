@@ -1,5 +1,0 @@
-apiVersion: v2
-name: mesada-supabase
-description: Supabase self-hosted for Mesada
-type: application
-version: 0.1.0

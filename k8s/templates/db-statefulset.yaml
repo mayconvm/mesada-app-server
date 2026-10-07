@@ -11,7 +11,9 @@ spec:
     matchLabels: { app: db }
   template:
     metadata:
-      labels: { app: db, {{ include "mesada.labels" . | nindent 8 }} }
+      labels:
+        app: db
+        {{- include "mesada.labels" . | nindent 8 }}
     spec:
       containers:
         - name: db

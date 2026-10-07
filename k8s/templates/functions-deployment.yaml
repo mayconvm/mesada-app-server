@@ -1,3 +1,4 @@
+{{- if .Values.functions.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -10,11 +11,14 @@ spec:
     matchLabels: { app: functions }
   template:
     metadata:
-      labels: { app: functions, {{ include "mesada.labels" . | nindent 8 }} }
+      labels:
+        app: functions
+        {{- include "mesada.labels" . | nindent 8 }}
     spec:
       containers:
         - name: functions
           image: {{ .Values.functions.image }}
+          args: ["start", "--main-service", "/home/deno/functions/main"]
           env:
             - name: SUPABASE_URL
               value: http://{{ include "mesada.fullname" . }}-kong:8000
@@ -29,6 +33,7 @@ spec:
           configMap:
             name: {{ include "mesada.fullname" . }}-functions
             optional: true
+{{- end }}
 ---
 apiVersion: v1
 kind: Service

@@ -10,7 +10,9 @@ spec:
     matchLabels: { app: auth }
   template:
     metadata:
-      labels: { app: auth, {{ include "mesada.labels" . | nindent 8 }} }
+      labels:
+        app: auth
+        {{- include "mesada.labels" . | nindent 8 }}
     spec:
       containers:
         - name: auth
@@ -20,18 +22,28 @@ spec:
               value: {{ .Values.postgres.user | quote }}
             - name: POSTGRES_PASSWORD
               valueFrom: { secretKeyRef: { name: {{ include "mesada.fullname" . }}-secrets, key: postgres-password } }
+            - name: GOTRUE_DB_DRIVER
+              value: postgres
             - name: GOTRUE_DB_DATABASE_URL
               value: postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@{{ include "mesada.fullname" . }}-db:5432/{{ .Values.postgres.db }}?search_path=auth
+            - name: GOTRUE_API_PORT
+              value: '9999'
+            - name: API_EXTERNAL_URL
+              value: {{ .Values.auth.siteUrl | default (printf "https://%s" .Values.ingress.host) | quote }}
             - name: GOTRUE_JWT_SECRET
               valueFrom: { secretKeyRef: { name: {{ include "mesada.fullname" . }}-secrets, key: jwt-secret } }
             - name: GOTRUE_JWT_EXP
               value: {{ .Values.auth.jwtExp | quote }}
+            - name: GOTRUE_JWT_AUD
+              value: authenticated
+            - name: GOTRUE_JWT_DEFAULT_GROUP_NAME
+              value: authenticated
             - name: GOTRUE_SITE_URL
-              value: https://{{ .Values.ingress.host }}
+              value: {{ .Values.auth.siteUrl | default (printf "https://%s" .Values.ingress.host) | quote }}
             - name: GOTRUE_URI_ALLOW_LIST
-              value: ''
+              value: {{ .Values.auth.uriAllowList | quote }}
             - name: GOTRUE_SMTP_HOST
-              value: {{ .Values.auth.smtpHost | quote }}
+              value: {{ .Values.auth.smtpHost | default (printf "%s-mailpit" (include "mesada.fullname" .)) | quote }}
             - name: GOTRUE_SMTP_PORT
               value: {{ .Values.auth.smtpPort | quote }}
             - name: GOTRUE_SMTP_ADMIN_EMAIL
